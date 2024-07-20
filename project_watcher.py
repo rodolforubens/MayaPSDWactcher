@@ -2,7 +2,7 @@ import os
 import shutil
 import sys
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, scrolledtext
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from PIL import Image
@@ -11,6 +11,8 @@ from collections import deque
 import configparser
 
 CONFIG_FILE = "config.ini"
+LOG_FILE = "log.txt"
+
 if hasattr(sys, '_MEIPASS'):
     ICON_PATH = os.path.join(sys._MEIPASS, 'eye.ico')
 else:
@@ -90,8 +92,8 @@ class Application(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Project Watcher Setup")
-        self.geometry("500x450")
-        self.minsize(500, 450)
+        self.geometry("600x450")
+        self.minsize(600, 450)
         self.iconbitmap(ICON_PATH)  # Set the window icon
 
         self.src_folder = tk.StringVar()
@@ -108,7 +110,7 @@ class Application(tk.Tk):
         self.border_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
         frame = tk.Frame(self.border_frame)
-        frame.pack(pady=10, padx=10, anchor='w', fill=tk.X, expand=True)
+        frame.pack(pady=10, padx=10, anchor='nw', fill=tk.X)
 
         tk.Label(frame, text="Source Folder:").grid(row=0, column=0, sticky='w')
         self.src_entry = tk.Entry(frame, textvariable=self.src_folder)
@@ -131,8 +133,13 @@ class Application(tk.Tk):
 
         frame.grid_columnconfigure(1, weight=1)
 
-        self.log_text = tk.Text(self.border_frame, state=tk.DISABLED)
+        self.log_text = scrolledtext.ScrolledText(self.border_frame, state=tk.DISABLED)
         self.log_text.pack(fill=tk.BOTH, expand=True, pady=5, padx=10)
+
+        self.clear_log_button = tk.Button(self.border_frame, text="Clear Log", command=self.clear_log)
+        self.clear_log_button.pack(pady=5)
+
+        self.load_log()
 
     def browse_src_folder(self):
         folder = filedialog.askdirectory()
@@ -175,6 +182,13 @@ class Application(tk.Tk):
         self.log_text.delete(1.0, tk.END)
         self.log_text.insert(tk.END, "\n".join(recent_files))
         self.log_text.config(state=tk.DISABLED)
+        self.save_log()
+
+    def clear_log(self):
+        self.log_text.config(state=tk.NORMAL)
+        self.log_text.delete(1.0, tk.END)
+        self.log_text.config(state=tk.DISABLED)
+        self.save_log()
 
     def load_config(self):
         config = configparser.ConfigParser()
@@ -195,6 +209,18 @@ class Application(tk.Tk):
         }
         with open(CONFIG_FILE, 'w') as configfile:
             config.write(configfile)
+
+    def load_log(self):
+        if os.path.exists(LOG_FILE):
+            with open(LOG_FILE, 'r') as log_file:
+                log_content = log_file.read()
+                self.log_text.config(state=tk.NORMAL)
+                self.log_text.insert(tk.END, log_content)
+                self.log_text.config(state=tk.DISABLED)
+
+    def save_log(self):
+        with open(LOG_FILE, 'w') as log_file:
+            log_file.write(self.log_text.get(1.0, tk.END))
 
     def resync(self):
         src = self.src_folder.get()
@@ -258,6 +284,7 @@ class Application(tk.Tk):
         self.log_text.config(state=tk.NORMAL)
         self.log_text.insert(tk.END, file_path + "\n")
         self.log_text.config(state=tk.DISABLED)
+        self.save_log()
 
 if __name__ == "__main__":
     app = Application()
