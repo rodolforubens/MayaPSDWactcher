@@ -90,8 +90,8 @@ class Application(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Project Watcher Setup")
-        self.geometry("600x450")
-        self.minsize(600, 450)
+        self.geometry("510x450")
+        self.minsize(510, 450)
         self.iconbitmap(ICON_PATH)  # Set the window icon
 
         self.src_folder = tk.StringVar()
