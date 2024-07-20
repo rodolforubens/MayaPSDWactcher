@@ -12,6 +12,21 @@ import configparser
 CONFIG_FILE = "config.ini"
 LOG_FILE = "log.txt"
 
+def get_app_data_path():
+    if sys.platform == "win32":
+        return os.getenv("APPDATA")
+    elif sys.platform == "darwin":
+        return os.path.expanduser("~/Library/Application Support")
+    else:
+        return os.path.expanduser("~/.local/share")
+
+APP_DATA_DIR = os.path.join(get_app_data_path(), "MayaPSDUnity")
+if not os.path.exists(APP_DATA_DIR):
+    os.makedirs(APP_DATA_DIR)
+
+CONFIG_FILE_PATH = os.path.join(APP_DATA_DIR, CONFIG_FILE)
+LOG_FILE_PATH = os.path.join(APP_DATA_DIR, LOG_FILE)
+
 if hasattr(sys, '_MEIPASS'):
     ICON_PATH = os.path.join(sys._MEIPASS, 'eye.ico')
 else:
@@ -89,7 +104,7 @@ class Application(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("MayaPSDUnity")
-        self.geometry("500x450")
+        self.geometry("600x450")
         self.minsize(500, 450)
         self.iconbitmap(ICON_PATH)  # Set the window icon
 
@@ -123,6 +138,9 @@ class Application(tk.Tk):
 
         self.resync_button = tk.Button(top_frame, text="Resync", command=self.resync)
         self.resync_button.grid(row=2, column=1, pady=10, sticky='w')
+
+        self.error_label = tk.Label(self.border_frame, text="", fg="red")
+        self.error_label.pack(pady=5)
 
         top_frame.grid_columnconfigure(1, weight=1)
 
@@ -165,7 +183,8 @@ class Application(tk.Tk):
             self.watch_button.config(text="Stop Watching")
             self.border_frame.config(highlightbackground="red", highlightcolor="red")
         else:
-            tk.Label(self, text="Please select both source and destination folders.").pack(pady=5)
+            self.error_label.config(text="Please select both source and destination folders.")
+            self.after(3000, self.clear_error_label)  # Clear the error message after 3 seconds
 
     def stop_watching(self):
         if self.observer:
@@ -174,6 +193,9 @@ class Application(tk.Tk):
             self.observer = None
             self.watch_button.config(text="Start Watching")
             self.border_frame.config(highlightbackground="white", highlightcolor="white")
+
+    def clear_error_label(self):
+        self.error_label.config(text="")
 
     def log_file_change(self, file_path):
         self.log_text.config(state=tk.NORMAL)
@@ -189,8 +211,8 @@ class Application(tk.Tk):
 
     def load_config(self):
         config = configparser.ConfigParser()
-        if os.path.exists(CONFIG_FILE):
-            config.read(CONFIG_FILE)
+        if os.path.exists(CONFIG_FILE_PATH):
+            config.read(CONFIG_FILE_PATH)
             self.src_folder.set(config.get("Folders", "src_folder", fallback=""))
             self.dest_folder.set(config.get("Folders", "dest_folder", fallback=""))
     
@@ -200,19 +222,19 @@ class Application(tk.Tk):
             'src_folder': self.src_folder.get(),
             'dest_folder': self.dest_folder.get()
         }
-        with open(CONFIG_FILE, 'w') as configfile:
+        with open(CONFIG_FILE_PATH, 'w') as configfile:
             config.write(configfile)
 
     def load_log(self):
-        if os.path.exists(LOG_FILE):
-            with open(LOG_FILE, 'r') as log_file:
+        if os.path.exists(LOG_FILE_PATH):
+            with open(LOG_FILE_PATH, 'r') as log_file:
                 log_content = log_file.read()
                 self.log_text.config(state=tk.NORMAL)
                 self.log_text.insert(tk.END, log_content)
                 self.log_text.config(state=tk.DISABLED)
 
     def save_log(self):
-        with open(LOG_FILE, 'w') as log_file:
+        with open(LOG_FILE_PATH, 'w') as log_file:
             log_file.write(self.log_text.get(1.0, tk.END))
 
     def resync(self):
