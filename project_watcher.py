@@ -1,5 +1,6 @@
 import os
 import shutil
+import sys
 import tkinter as tk
 from tkinter import filedialog
 from watchdog.observers import Observer
@@ -10,7 +11,10 @@ from collections import deque
 import configparser
 
 CONFIG_FILE = "config.ini"
-ICON_PATH = "eye.ico"  # Path to your icon file
+if hasattr(sys, '_MEIPASS'):
+    ICON_PATH = os.path.join(sys._MEIPASS, 'eye.ico')
+else:
+    ICON_PATH = 'eye.ico'
 
 class FileChangeHandler(FileSystemEventHandler):
     def __init__(self, src_folder, dest_folder, log_callback, log_size=10):
