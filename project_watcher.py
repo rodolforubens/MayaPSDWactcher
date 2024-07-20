@@ -7,7 +7,6 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from PIL import Image
 import subprocess
-from collections import deque
 import configparser
 
 CONFIG_FILE = "config.ini"
@@ -19,11 +18,10 @@ else:
     ICON_PATH = 'eye.ico'
 
 class FileChangeHandler(FileSystemEventHandler):
-    def __init__(self, src_folder, dest_folder, log_callback, log_size=10):
+    def __init__(self, src_folder, dest_folder, log_callback):
         self.src_folder = src_folder
         self.dest_folder = dest_folder
         self.log_callback = log_callback
-        self.recent_files = deque(maxlen=log_size)
 
     def on_modified(self, event):
         if event.src_path.endswith(".psd"):
@@ -78,11 +76,10 @@ class FileChangeHandler(FileSystemEventHandler):
         self.log_file_change(fbx_src_path)
 
     def log_file_change(self, file_path):
-        self.recent_files.appendleft(file_path)
-        self.log_callback(self.recent_files)
+        self.log_callback(file_path)
 
-def start_watcher(src_folder, dest_folder, log_callback, log_size):
-    event_handler = FileChangeHandler(src_folder, dest_folder, log_callback, log_size)
+def start_watcher(src_folder, dest_folder, log_callback):
+    event_handler = FileChangeHandler(src_folder, dest_folder, log_callback)
     observer = Observer()
     observer.schedule(event_handler, path=src_folder, recursive=True)
     observer.start()
@@ -91,14 +88,13 @@ def start_watcher(src_folder, dest_folder, log_callback, log_size):
 class Application(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Project Watcher Setup")
-        self.geometry("600x450")
-        self.minsize(600, 450)
+        self.title("MayaPSDUnity")
+        self.geometry("500x450")
+        self.minsize(500, 450)
         self.iconbitmap(ICON_PATH)  # Set the window icon
 
         self.src_folder = tk.StringVar()
         self.dest_folder = tk.StringVar()
-        self.log_size = tk.IntVar(value=10)
         self.observer = None
 
         self.load_config()
@@ -109,35 +105,38 @@ class Application(tk.Tk):
         self.border_frame = tk.Frame(self, highlightbackground="white", highlightcolor="white", highlightthickness=5)
         self.border_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        frame = tk.Frame(self.border_frame)
-        frame.pack(pady=10, padx=10, anchor='nw', fill=tk.X)
+        top_frame = tk.Frame(self.border_frame)
+        top_frame.pack(fill=tk.X, padx=10, pady=5)
 
-        tk.Label(frame, text="Source Folder:").grid(row=0, column=0, sticky='w')
-        self.src_entry = tk.Entry(frame, textvariable=self.src_folder)
+        tk.Label(top_frame, text="Source Folder:").grid(row=0, column=0, sticky='w')
+        self.src_entry = tk.Entry(top_frame, textvariable=self.src_folder)
         self.src_entry.grid(row=0, column=1, padx=5, sticky='ew')
-        tk.Button(frame, text="Browse", command=self.browse_src_folder).grid(row=0, column=2)
+        tk.Button(top_frame, text="Browse", command=self.browse_src_folder).grid(row=0, column=2)
 
-        tk.Label(frame, text="Destination Folder:").grid(row=1, column=0, sticky='w')
-        self.dest_entry = tk.Entry(frame, textvariable=self.dest_folder)
+        tk.Label(top_frame, text="Destination Folder:").grid(row=1, column=0, sticky='w')
+        self.dest_entry = tk.Entry(top_frame, textvariable=self.dest_folder)
         self.dest_entry.grid(row=1, column=1, padx=5, sticky='ew')
-        tk.Button(frame, text="Browse", command=self.browse_dest_folder).grid(row=1, column=2)
+        tk.Button(top_frame, text="Browse", command=self.browse_dest_folder).grid(row=1, column=2)
 
-        tk.Label(frame, text="Log Size:").grid(row=2, column=0, sticky='w')
-        tk.Entry(frame, textvariable=self.log_size, width=5).grid(row=2, column=1, padx=5, sticky='w')
+        self.watch_button = tk.Button(top_frame, text="Start Watching", command=self.toggle_watching)
+        self.watch_button.grid(row=2, column=0, pady=10, sticky='w')
 
-        self.watch_button = tk.Button(frame, text="Start Watching", command=self.toggle_watching)
-        self.watch_button.grid(row=3, column=0, pady=10, sticky='w')
+        self.resync_button = tk.Button(top_frame, text="Resync", command=self.resync)
+        self.resync_button.grid(row=2, column=1, pady=10, sticky='w')
 
-        self.resync_button = tk.Button(frame, text="Resync", command=self.resync)
-        self.resync_button.grid(row=3, column=1, pady=10, sticky='w')
+        top_frame.grid_columnconfigure(1, weight=1)
 
-        frame.grid_columnconfigure(1, weight=1)
+        log_frame = tk.Frame(self.border_frame)
+        log_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
-        self.log_text = scrolledtext.ScrolledText(self.border_frame, state=tk.DISABLED)
-        self.log_text.pack(fill=tk.BOTH, expand=True, pady=5, padx=10)
+        self.log_text = scrolledtext.ScrolledText(log_frame, state=tk.DISABLED, height=10)
+        self.log_text.pack(fill=tk.BOTH, expand=True)
 
-        self.clear_log_button = tk.Button(self.border_frame, text="Clear Log", command=self.clear_log)
-        self.clear_log_button.pack(pady=5)
+        button_frame = tk.Frame(self.border_frame)
+        button_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        self.clear_log_button = tk.Button(button_frame, text="Clear Log", command=self.clear_log)
+        self.clear_log_button.pack(side=tk.RIGHT)
 
         self.load_log()
 
@@ -160,9 +159,8 @@ class Application(tk.Tk):
     def start_watching(self):
         src = self.src_folder.get()
         dest = self.dest_folder.get()
-        log_size = self.log_size.get()
         if src and dest:
-            self.observer = start_watcher(src, dest, self.update_log, log_size)
+            self.observer = start_watcher(src, dest, self.log_file_change)
             self.save_config()
             self.watch_button.config(text="Stop Watching")
             self.border_frame.config(highlightbackground="red", highlightcolor="red")
@@ -177,10 +175,9 @@ class Application(tk.Tk):
             self.watch_button.config(text="Start Watching")
             self.border_frame.config(highlightbackground="white", highlightcolor="white")
 
-    def update_log(self, recent_files):
+    def log_file_change(self, file_path):
         self.log_text.config(state=tk.NORMAL)
-        self.log_text.delete(1.0, tk.END)
-        self.log_text.insert(tk.END, "\n".join(recent_files))
+        self.log_text.insert(tk.END, file_path + "\n")
         self.log_text.config(state=tk.DISABLED)
         self.save_log()
 
@@ -196,16 +193,12 @@ class Application(tk.Tk):
             config.read(CONFIG_FILE)
             self.src_folder.set(config.get("Folders", "src_folder", fallback=""))
             self.dest_folder.set(config.get("Folders", "dest_folder", fallback=""))
-            self.log_size.set(config.getint("Settings", "log_size", fallback=10))
     
     def save_config(self):
         config = configparser.ConfigParser()
         config['Folders'] = {
             'src_folder': self.src_folder.get(),
             'dest_folder': self.dest_folder.get()
-        }
-        config['Settings'] = {
-            'log_size': self.log_size.get()
         }
         with open(CONFIG_FILE, 'w') as configfile:
             config.write(configfile)
@@ -279,12 +272,6 @@ class Application(tk.Tk):
 
         # Log the file change
         self.log_file_change(fbx_src_path)
-
-    def log_file_change(self, file_path):
-        self.log_text.config(state=tk.NORMAL)
-        self.log_text.insert(tk.END, file_path + "\n")
-        self.log_text.config(state=tk.DISABLED)
-        self.save_log()
 
 if __name__ == "__main__":
     app = Application()
