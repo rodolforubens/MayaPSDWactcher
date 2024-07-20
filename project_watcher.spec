@@ -6,7 +6,7 @@ a = Analysis(
     ['project_watcher.py'],
     pathex=['.'],
     binaries=[],
-    datas=[('eye.ico', 'eye.ico')],
+    datas=[('eye.ico', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

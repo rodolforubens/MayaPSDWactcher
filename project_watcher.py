@@ -90,8 +90,8 @@ class Application(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Project Watcher Setup")
-        self.geometry("510x450")
-        self.minsize(510, 450)
+        self.geometry("500x450")
+        self.minsize(500, 450)
         self.iconbitmap(ICON_PATH)  # Set the window icon
 
         self.src_folder = tk.StringVar()
@@ -108,14 +108,16 @@ class Application(tk.Tk):
         self.border_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
         frame = tk.Frame(self.border_frame)
-        frame.pack(pady=10, padx=10, anchor='w')
+        frame.pack(pady=10, padx=10, anchor='w', fill=tk.X, expand=True)
 
         tk.Label(frame, text="Source Folder:").grid(row=0, column=0, sticky='w')
-        tk.Entry(frame, textvariable=self.src_folder, width=50).grid(row=0, column=1, padx=5)
+        self.src_entry = tk.Entry(frame, textvariable=self.src_folder)
+        self.src_entry.grid(row=0, column=1, padx=5, sticky='ew')
         tk.Button(frame, text="Browse", command=self.browse_src_folder).grid(row=0, column=2)
 
         tk.Label(frame, text="Destination Folder:").grid(row=1, column=0, sticky='w')
-        tk.Entry(frame, textvariable=self.dest_folder, width=50).grid(row=1, column=1, padx=5)
+        self.dest_entry = tk.Entry(frame, textvariable=self.dest_folder)
+        self.dest_entry.grid(row=1, column=1, padx=5, sticky='ew')
         tk.Button(frame, text="Browse", command=self.browse_dest_folder).grid(row=1, column=2)
 
         tk.Label(frame, text="Log Size:").grid(row=2, column=0, sticky='w')
@@ -126,6 +128,8 @@ class Application(tk.Tk):
 
         self.resync_button = tk.Button(frame, text="Resync", command=self.resync)
         self.resync_button.grid(row=3, column=1, pady=10, sticky='w')
+
+        frame.grid_columnconfigure(1, weight=1)
 
         self.log_text = tk.Text(self.border_frame, state=tk.DISABLED)
         self.log_text.pack(fill=tk.BOTH, expand=True, pady=5, padx=10)
